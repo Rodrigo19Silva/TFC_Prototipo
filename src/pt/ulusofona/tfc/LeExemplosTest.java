@@ -16,7 +16,7 @@ class LeExemplosTest {
 
     @Test
     void retornaListaVaziaQuandoPastaForNull() {
-        ArrayList<String> res = Main.leExemplos(null);
+        ArrayList<String> res = GUI.leExemplos(null);
         assertNotNull(res);
         assertTrue(res.isEmpty(), "Para pasta null deve devolver lista vazia.");
     }
@@ -25,10 +25,10 @@ class LeExemplosTest {
     void retornaListaVaziaQuandoPastaNaoExiste() {
         File inexistente = new File("___esta_pasta_nao_existe___");
         if (inexistente.exists()) {
-            fail("O caminho de teste já existe, escolhe outro nome único.");
+            fail("O caminho de teste jÃ¡ existe, escolhe outro nome Ãºnico.");
         }
 
-        ArrayList<String> res = Main.leExemplos(inexistente);
+        ArrayList<String> res = GUI.leExemplos(inexistente);
         assertNotNull(res);
         assertTrue(res.isEmpty(), "Pasta inexistente.");
     }
@@ -36,7 +36,7 @@ class LeExemplosTest {
     @Test
     void retornaListaVaziaQuandoPastaVazia(@TempDir Path tempDir) {
         File pastaVazia = tempDir.toFile();
-        ArrayList<String> res = Main.leExemplos(pastaVazia);
+        ArrayList<String> res = GUI.leExemplos(pastaVazia);
         assertNotNull(res);
         assertTrue(res.isEmpty(), "Para pasta vazia deve devolver lista vazia.");
     }

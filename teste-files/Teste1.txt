@@ -1,3 +1,0 @@
-Este é um ficheiro de teste.
-Linha 2 do ficheiro.
-Linha 3: tudo ok!
