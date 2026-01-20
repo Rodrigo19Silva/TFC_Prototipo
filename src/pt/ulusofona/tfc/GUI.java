@@ -28,7 +28,7 @@ public class GUI {
     public static ArrayList<String> leExemplos(File pasta) {
         ArrayList<String> conteudoFicheiros = new ArrayList<>();
 
-        // verificar se a pasta existe ou Ã© diretÃ³rio
+        // verificar se a pasta existe ou é diretório
         if (pasta == null || !pasta.exists() || !pasta.isDirectory()) {
             System.out.println("A pasta " + pasta + " nÃ£o existe");
             return conteudoFicheiros;
@@ -52,7 +52,7 @@ public class GUI {
                         conteudoDoFicheiro.append(linha).append("\n");
                     }
 
-                    //adiciona o conteudo Ã  lista
+                    //adiciona o conteudo à lista
                     conteudoFicheiros.add(conteudoDoFicheiro.toString());
 
                 } catch (IOException e) {
@@ -85,7 +85,7 @@ public class GUI {
 
     private static String criarPrompt(ArrayList<String> partes) {
         String resultado  = "";
-        // adiciona cada parte (ficheiro) Ã  prompt
+        // adiciona cada parte (ficheiro) à prompt
         // nota:
         if (partes != null) {
             int i = 0;
@@ -130,7 +130,7 @@ public class GUI {
             }
         }
 
-        infoTextArea.append("\n\nConcluÃ­do.\n");
+        infoTextArea.append("\n\nConcluído.\n");
     }
 
     // grid layout
@@ -184,9 +184,9 @@ public class GUI {
         painel.add(modeloComboBox, gbc);
         gbc.gridwidth = 1;
 
-        // nr versÃµes
+        // nr versões
         gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.0; gbc.fill = GridBagConstraints.NONE;
-        painel.add(new JLabel("VersÃµes:"), gbc);
+        painel.add(new JLabel("Versões:"), gbc);
 
         Integer[] options = {1,2,3,4,5,6,7,8,9,10};
         versoesComboBox = new JComboBox<>(options);
@@ -203,7 +203,7 @@ public class GUI {
 
         // textarea onde aparece as informaÃ§Ãµes
         gbc.gridx = 0; gbc.gridy = 3; gbc.anchor = GridBagConstraints.NORTHWEST;
-        painel.add(new JLabel("InformaÃ§Ãµes:"), gbc);
+        painel.add(new JLabel("Informações:"), gbc);
 
         infoTextArea = new JTextArea(12, 60);
         infoTextArea.setEditable(false);
@@ -243,13 +243,13 @@ public class GUI {
                     nrVersoes = (Integer) sel;
                 } else {
                     if (sel == null) {
-                        JOptionPane.showMessageDialog(window, "Indique o nÃºmero de versÃµes",
+                        JOptionPane.showMessageDialog(window, "Indique o numero de versões",
                                 "Valor em falta", JOptionPane.WARNING_MESSAGE);
                         return;
                     }
                     String txt = sel.toString().trim();
                     if (txt.isEmpty()) {
-                        JOptionPane.showMessageDialog(window, "Indique o nÃºmero de versÃµes",
+                        JOptionPane.showMessageDialog(window, "Indique o numero de versões",
                                 "Valor em falta", JOptionPane.WARNING_MESSAGE);
                         return;
                     }
@@ -257,7 +257,7 @@ public class GUI {
                 }
 
                 if (nrVersoes < 1) {
-                    JOptionPane.showMessageDialog(window, "O nÃºmero de versÃµes tem de ser maior ou igual que 1.",
+                    JOptionPane.showMessageDialog(window, "O numero de versões tem de ser maior ou igual que 1.",
                             "Valor invÃ¡lido", JOptionPane.WARNING_MESSAGE);
                     return;
                 }

@@ -25,7 +25,7 @@ class LeExemplosTest {
     void retornaListaVaziaQuandoPastaNaoExiste() {
         File inexistente = new File("___esta_pasta_nao_existe___");
         if (inexistente.exists()) {
-            fail("O caminho de teste jÃ¡ existe, escolhe outro nome Ãºnico.");
+            fail("O caminho de teste já existe, escolhe outro nome único.");
         }
 
         ArrayList<String> res = GUI.leExemplos(inexistente);

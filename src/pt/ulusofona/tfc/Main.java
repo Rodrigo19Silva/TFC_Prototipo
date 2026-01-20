@@ -6,9 +6,8 @@ public class Main {
 
     //variaveis globais
     private static String model = "gpt-4-turbo";
-    static String apiKey = ""; // TODO: alterar | nÃ£o enviar para o GitHub
-
-    static String server = ""; // TODO: alterar | nÃ£o enviar para o GitHub
+    static String apiKey = System.getenv("TFC_API_KEY");
+    static String server = System.getenv("TFC_URL_SERVER");
 
     static boolean useHack = true;
 
