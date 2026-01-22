@@ -29,7 +29,7 @@ public class GUI {
 
         // verificar se a pasta existe ou é diretório
         if (pasta == null || !pasta.exists() || !pasta.isDirectory()) {
-            System.out.println("A pasta " + pasta + " nÃ£o existe");
+            System.out.println("A pasta " + pasta + " não existe");
             return exemplos;
         }
 
