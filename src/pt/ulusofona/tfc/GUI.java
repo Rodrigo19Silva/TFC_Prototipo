@@ -96,7 +96,7 @@ public class GUI {
     private static ArrayList<TrainingExample> getInputFilesContents(String folder) {
         File pasta = new File(folder);
         if (!pasta.exists() || !pasta.isDirectory()) {
-            JOptionPane.showMessageDialog(null, "Pasta invÃ¡lida: " + pasta.getAbsolutePath(),
+            JOptionPane.showMessageDialog(null, "Pasta inválida: " + pasta.getAbsolutePath(),
                     "Erro", JOptionPane.WARNING_MESSAGE);
             return null;
         }
@@ -104,7 +104,7 @@ public class GUI {
         ArrayList<TrainingExample> exemplos = leExemplos(pasta);
 
         if (exemplos.isEmpty()) {
-            JOptionPane.showMessageDialog(null, "A pasta nÃ£o contÃ©m ficheiros .txt.",
+            JOptionPane.showMessageDialog(null, "A pasta não contém ficheiros .txt.",
                     "Sem exemplos", JOptionPane.WARNING_MESSAGE);
             return null;
         }
@@ -136,7 +136,7 @@ public class GUI {
         infoTextArea.append("Ficheiros lidos: " + exemplos.size() + "\n");
 
         for (int versao = 1; versao <= nrVersoes; versao++) {
-            infoTextArea.append("VersÃ£o " + versao + "...\n");
+            infoTextArea.append("Versão " + versao + "...\n");
             try {
 
                 String prompt = criarPrompt(exemplos);
@@ -229,7 +229,7 @@ public class GUI {
         gbc.gridx = 2; gbc.weightx = 0.7;
         painel.add(Box.createHorizontalStrut(1), gbc);
 
-        // textarea onde aparece as informaÃ§Ãµes
+        // textarea onde aparece as informações
         gbc.gridx = 0; gbc.gridy = 3; gbc.anchor = GridBagConstraints.NORTHWEST;
         painel.add(new JLabel("Informações:"), gbc);
 
@@ -286,7 +286,7 @@ public class GUI {
 
                 if (nrVersoes < 1) {
                     JOptionPane.showMessageDialog(window, "O numero de versões tem de ser maior ou igual que 1.",
-                            "Valor invÃ¡lido", JOptionPane.WARNING_MESSAGE);
+                            "Valor inválido", JOptionPane.WARNING_MESSAGE);
                     return;
                 }
 
