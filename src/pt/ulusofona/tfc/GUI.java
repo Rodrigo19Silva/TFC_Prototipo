@@ -9,7 +9,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -25,47 +24,76 @@ public class GUI {
         this.engine = engine;
     }
 
-    public static ArrayList<String> leExemplos(File pasta) {
-        ArrayList<String> conteudoFicheiros = new ArrayList<>();
+    public static ArrayList<TrainingExample> leExemplos(File pasta) {
+        ArrayList<TrainingExample> exemplos = new ArrayList<>();
 
         // verificar se a pasta existe ou é diretório
         if (pasta == null || !pasta.exists() || !pasta.isDirectory()) {
             System.out.println("A pasta " + pasta + " nÃ£o existe");
-            return conteudoFicheiros;
+            return exemplos;
         }
 
         //guardar nomes dos ficheiros
+        String instructions = null;
+        String reference = null;
+        String tests = null;
+
         String[] objetos = pasta.list();
         int i = 0;
 
         while (objetos != null && i < objetos.length) {
             File ficheiro = new File(pasta, objetos[i]);
 
-            //ficheiros apenas se forem txt
-            if (ficheiro.isFile() && ficheiro.getName().toLowerCase().endsWith(".txt")) {
-                try (BufferedReader br = new BufferedReader(new FileReader(ficheiro))) {
-                    StringBuilder conteudoDoFicheiro = new StringBuilder();
-                    String linha;
+            if (ficheiro.isFile()) {
+                String nome = ficheiro.getName();
 
-                    //le o ficheiro linha a linha
-                    while ((linha = br.readLine()) != null) {
-                        conteudoDoFicheiro.append(linha).append("\n");
+                // em vez de agora ser ficheiros .txt agora é o instructions.md, Main.java, TestMain.java
+                if (nome.equalsIgnoreCase("instructions.md") ||
+                        nome.equalsIgnoreCase("Main.java") ||
+                        nome.equalsIgnoreCase("TestMain.java")) {
+
+                    try (BufferedReader br = new BufferedReader(
+                            new java.io.InputStreamReader(
+                                    new java.io.FileInputStream(ficheiro),
+                                    java.nio.charset.StandardCharsets.UTF_8
+                            ))) {
+
+                        StringBuilder conteudoDoFicheiro = new StringBuilder();
+                        String linha;
+
+                        while ((linha = br.readLine()) != null) {
+                            conteudoDoFicheiro.append(linha).append("\n");
+                        }
+
+                        String conteudo = conteudoDoFicheiro.toString();
+
+                        if (nome.equalsIgnoreCase("instructions.md")) {
+                            instructions = conteudo;
+                        } else if (nome.equalsIgnoreCase("Main.java")) {
+                            reference = conteudo;
+                        } else { // TestMain.java
+                            tests = conteudo;
+                        }
+
+                    } catch (IOException e) {
+                        throw new RuntimeException("Erro ao ler o ficheiro: " + ficheiro.getAbsolutePath(), e);
                     }
-
-                    //adiciona o conteudo à lista
-                    conteudoFicheiros.add(conteudoDoFicheiro.toString());
-
-                } catch (IOException e) {
-                    throw new RuntimeException("Erro ao ler o ficheiro: " + ficheiro.getAbsolutePath(), e);
                 }
             }
+
             i++;
         }
 
-        return conteudoFicheiros;
+        // só cria exemplo se tiver os 3 conteúdos
+        String id = pasta.getName();
+        if (instructions != null && reference != null && tests != null) {
+            exemplos.add(new TrainingExample(id, instructions, reference, tests));
+        }
+
+        return exemplos;
     }
 
-    private static ArrayList<String> getInputFilesContents(String folder) {
+    private static ArrayList<TrainingExample> getInputFilesContents(String folder) {
         File pasta = new File(folder);
         if (!pasta.exists() || !pasta.isDirectory()) {
             JOptionPane.showMessageDialog(null, "Pasta invÃ¡lida: " + pasta.getAbsolutePath(),
@@ -73,7 +101,7 @@ public class GUI {
             return null;
         }
 
-        ArrayList<String> exemplos = leExemplos(pasta);
+        ArrayList<TrainingExample> exemplos = leExemplos(pasta);
 
         if (exemplos.isEmpty()) {
             JOptionPane.showMessageDialog(null, "A pasta nÃ£o contÃ©m ficheiros .txt.",
@@ -83,14 +111,14 @@ public class GUI {
         return exemplos;
     }
 
-    private static String criarPrompt(ArrayList<String> partes) {
+    private static String criarPrompt(ArrayList<TrainingExample> partes) {
         String resultado  = "";
         // adiciona cada parte (ficheiro) à prompt
         // nota:
         if (partes != null) {
             int i = 0;
             while (i < partes.size()) {
-                String conteudoFicheiro = partes.get(i);
+                String conteudoFicheiro = String.valueOf(partes.get(i));
 
                 i++;
             }
@@ -101,7 +129,7 @@ public class GUI {
 
     static void processarPedido(String folder, String modelo, int nrVersoes) {
 
-        ArrayList<String> exemplos = getInputFilesContents(folder);
+        ArrayList<TrainingExample> exemplos = getInputFilesContents(folder);
 
         if (exemplos == null) return;
 
