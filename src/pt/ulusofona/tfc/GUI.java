@@ -104,7 +104,9 @@ public class GUI {
         ArrayList<TrainingExample> exemplos = leExemplos(pasta);
 
         if (exemplos.isEmpty()) {
-            JOptionPane.showMessageDialog(null, "A pasta não contém ficheiros .txt.",
+            JOptionPane.showMessageDialog(null,
+                    "A pasta não contém um exemplo válido.\n" +
+                            "Esperado: instructions.md, Main.java, TestMain.java",
                     "Sem exemplos", JOptionPane.WARNING_MESSAGE);
             return null;
         }
@@ -112,13 +114,35 @@ public class GUI {
     }
 
     private static String criarPrompt(ArrayList<TrainingExample> partes) {
-        String resultado  = "";
-        // adiciona cada parte (ficheiro) à prompt
-        // nota:
+        String resultado = "";
+
+        // validação básica
         if (partes != null) {
             int i = 0;
+
             while (i < partes.size()) {
-                String conteudoFicheiro = String.valueOf(partes.get(i));
+
+                // cada item é um TrainingExample (com instructions/reference/tests)
+                TrainingExample exemplo = partes.get(i);
+
+                // construir o JSON com os 3 conteúdos (instructions, reference, tests)
+                String jsonTreino = "";
+                jsonTreino += "{";
+                jsonTreino += "\"instructions\":\"" + JSONUtils.escapeJsonString(exemplo.getInstructions()) + "\",";
+                jsonTreino += "\"reference\":\"" + JSONUtils.escapeJsonString(exemplo.getReferenceCode()) + "\",";
+                jsonTreino += "\"tests\":\"" + JSONUtils.escapeJsonString(exemplo.getTestsCode()) + "\"";
+                jsonTreino += "}";
+
+                // construir a prompt final
+                resultado += "Gera uma nova versão do enunciado e dos testes, mantendo tema e dificuldade.\n";
+                resultado += "Responde APENAS em JSON no formato:\n";
+                resultado += "{ \"versions\": [ { \"id\": \"v1\", \"instructions\": \"...\", \"reference\": \"...\", \"tests\": \"...\" } ] }\n\n";
+                resultado += "EXEMPLO DE TREINO:\n";
+                resultado += jsonTreino;
+
+                if (i < partes.size() - 1) {
+                    resultado += "\n\n";
+                }
 
                 i++;
             }
@@ -130,8 +154,9 @@ public class GUI {
     static void processarPedido(String folder, String modelo, int nrVersoes) {
 
         ArrayList<TrainingExample> exemplos = getInputFilesContents(folder);
-
         if (exemplos == null) return;
+
+        engine.model = modelo;
 
         infoTextArea.append("Ficheiros lidos: " + exemplos.size() + "\n");
 
@@ -142,14 +167,19 @@ public class GUI {
                 String prompt = criarPrompt(exemplos);
 
                 String jsonResposta = engine.sendPrompt(prompt);
-
                 String resposta = JSONUtils.getJsonString(jsonResposta, "text");
 
                 System.out.println(jsonResposta);
 
-                infoTextArea.setText("");
+                infoTextArea.append("\nResposta " + versao + " ---\n");
 
-                infoTextArea.setText(resposta);
+                if (resposta != null) {
+                    infoTextArea.append(resposta);
+                } else {
+                    infoTextArea.append(jsonResposta);
+                }
+
+                infoTextArea.append("\n\n");
 
             } catch (Exception erro) {
                 JOptionPane.showMessageDialog(null, "Erro: " + erro.getMessage(),
@@ -158,7 +188,7 @@ public class GUI {
             }
         }
 
-        infoTextArea.append("\n\nConcluído.\n");
+        infoTextArea.append("Concluído.\n");
     }
 
     // grid layout

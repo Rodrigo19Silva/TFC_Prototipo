@@ -58,4 +58,13 @@ public class JSONUtils {
         return json.substring(firstQuote + 1, secondQuote);
     }
 
+    static String escapeJsonString(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n")
+                .replace("\t", "\\t");
+    }
+
 }

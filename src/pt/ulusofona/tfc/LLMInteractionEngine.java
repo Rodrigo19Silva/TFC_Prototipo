@@ -37,8 +37,8 @@ public class LLMInteractionEngine {
     String buildJSON(String model, String prompt) {
         String json = "";
         json += "{";
-        json += "\"" + "model" + "\": " + "\"" + model + "\",";
-        json += "\"" + "prompt" + "\" :" + "\"" + prompt + "\"";
+        json += "\"" + "model" + "\": " + "\"" + JSONUtils.escapeJsonString(model) + "\",";
+        json += "\"" + "prompt" + "\" :" + "\"" + JSONUtils.escapeJsonString(prompt) + "\"";
         json += "}";
         return json;
     }
