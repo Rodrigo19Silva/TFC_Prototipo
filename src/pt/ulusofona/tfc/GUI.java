@@ -21,8 +21,10 @@ public class GUI {
 
     private static LLMInteractionEngine engine;
     public GUI (LLMInteractionEngine engine) {
-        this.engine = engine;
+        // assign to static field explicitly
+        GUI.engine = engine;
     }
+
 
     public static ArrayList<TrainingExample> leExemplos(File pasta) {
         ArrayList<TrainingExample> exemplos = new ArrayList<>();
@@ -35,8 +37,8 @@ public class GUI {
 
         //guardar nomes dos ficheiros
         String instructions = null;
-        String reference = null;
-        String tests = null;
+        StringBuilder reference = new StringBuilder();
+        StringBuilder tests = new StringBuilder();
 
         String[] objetos = pasta.list();
         int i = 0;
@@ -47,10 +49,25 @@ public class GUI {
             if (ficheiro.isFile()) {
                 String nome = ficheiro.getName();
 
-                // em vez de agora ser ficheiros .txt agora é o instructions.md, Main.java, TestMain.java
-                if (nome.equalsIgnoreCase("instructions.md") ||
-                        nome.equalsIgnoreCase("Main.java") ||
-                        nome.equalsIgnoreCase("TestMain.java")) {
+                if (nome.equalsIgnoreCase("instructions.md") || nome.equalsIgnoreCase("instructions.html")) {
+                    try (BufferedReader br = new BufferedReader(
+                            new java.io.InputStreamReader(
+                                    new java.io.FileInputStream(ficheiro),
+                                    java.nio.charset.StandardCharsets.UTF_8))) {
+                        StringBuilder conteudoDoFicheiro = new StringBuilder();
+                        String linha;
+                        while ((linha = br.readLine()) != null) {
+                            conteudoDoFicheiro.append(linha).append("\n");
+                        }
+                        instructions = conteudoDoFicheiro.toString();
+                    }
+                    catch (IOException e) {
+                                        throw new RuntimeException("Erro ao ler o ficheiro: " + ficheiro.getAbsolutePath(), e);
+                                   }
+
+                                }
+
+                else if (nome.toLowerCase().endsWith(".java")) {
 
                     try (BufferedReader br = new BufferedReader(
                             new java.io.InputStreamReader(
@@ -67,18 +84,20 @@ public class GUI {
 
                         String conteudo = conteudoDoFicheiro.toString();
 
-                        if (nome.equalsIgnoreCase("instructions.md")) {
-                            instructions = conteudo;
-                        } else if (nome.equalsIgnoreCase("Main.java")) {
-                            reference = conteudo;
-                        } else { // TestMain.java
-                            tests = conteudo;
+                        // decidir se é teste ou reference (pela regra "Test...")
+                        if (nome.toLowerCase().startsWith("test")) {
+                            tests.append("\n// ===== ").append(nome).append(" =====\n");
+                            tests.append(conteudo);
+                        } else {
+                            reference.append("\n// ===== ").append(nome).append(" =====\n");
+                            reference.append(conteudo);
                         }
 
                     } catch (IOException e) {
                         throw new RuntimeException("Erro ao ler o ficheiro: " + ficheiro.getAbsolutePath(), e);
                     }
                 }
+
             }
 
             i++;
@@ -86,8 +105,8 @@ public class GUI {
 
         // só cria exemplo se tiver os 3 conteúdos
         String id = pasta.getName();
-        if (instructions != null && reference != null && tests != null) {
-            exemplos.add(new TrainingExample(id, instructions, reference, tests));
+        if (instructions != null && !reference.isEmpty() && !tests.isEmpty()) {
+            exemplos.add(new TrainingExample(id, instructions, reference.toString(), tests.toString()));
         }
 
         return exemplos;
@@ -114,7 +133,7 @@ public class GUI {
     }
 
     private static String criarPrompt(ArrayList<TrainingExample> partes) {
-        String resultado = "";
+        StringBuilder resultado = new StringBuilder();
 
         // validação básica
         if (partes != null) {
@@ -134,21 +153,21 @@ public class GUI {
                 jsonTreino += "}";
 
                 // construir a prompt final
-                resultado += "Gera uma nova versão do enunciado e dos testes, mantendo tema e dificuldade.\n";
-                resultado += "Responde APENAS em JSON no formato:\n";
-                resultado += "{ \"versions\": [ { \"id\": \"v1\", \"instructions\": \"...\", \"reference\": \"...\", \"tests\": \"...\" } ] }\n\n";
-                resultado += "EXEMPLO DE TREINO:\n";
-                resultado += jsonTreino;
+                resultado.append("Gera uma nova versão do enunciado e dos testes, mantendo tema e dificuldade.\n");
+                resultado.append("Responde APENAS em JSON no formato:\n");
+                resultado.append("{ \"versions\": [ { \"id\": \"v1\", \"instructions\": \"...\", \"reference\": \"...\", \"tests\": \"...\" } ] }\n\n");
+                resultado.append("EXEMPLO DE TREINO:\n");
+                resultado.append(jsonTreino);
 
                 if (i < partes.size() - 1) {
-                    resultado += "\n\n";
+                    resultado.append("\n\n");
                 }
 
                 i++;
             }
         }
 
-        return resultado;
+        return resultado.toString();
     }
 
     static void processarPedido(String folder, String modelo, int nrVersoes) {
@@ -339,7 +358,7 @@ public class GUI {
     }
 
     static String[] obterModelos() {
-        return new String[]{"gpt-4o-mini", "gpt-4o", "gpt-4.1-mini"};
+        return new String[]{"gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4-turbo"};
     }
 
 }
