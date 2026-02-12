@@ -105,8 +105,11 @@ public class GUI {
 
         // só cria exemplo se tiver os 3 conteúdos
         String id = pasta.getName();
-        if (instructions != null && !reference.isEmpty() && !tests.isEmpty()) {
-            exemplos.add(new TrainingExample(id, instructions, reference.toString(), tests.toString()));
+        if (instructions != null) {
+            String referenceStr = (reference.length() > 0) ? reference.toString() : "";
+            String testsStr = (tests.length() > 0) ? tests.toString() : "";
+
+            exemplos.add(new TrainingExample(id, instructions, referenceStr, testsStr));
         }
 
         return exemplos;
@@ -179,12 +182,13 @@ public class GUI {
 
         infoTextArea.append("Ficheiros lidos: " + exemplos.size() + "\n");
 
+        String prompt = criarPrompt(exemplos);
+
+        System.out.println("Prompt length = " + prompt.length());
+
         for (int versao = 1; versao <= nrVersoes; versao++) {
             infoTextArea.append("Versão " + versao + "...\n");
             try {
-
-                String prompt = criarPrompt(exemplos);
-
                 String jsonResposta = engine.sendPrompt(prompt);
                 String resposta = JSONUtils.getJsonString(jsonResposta, "text");
 
