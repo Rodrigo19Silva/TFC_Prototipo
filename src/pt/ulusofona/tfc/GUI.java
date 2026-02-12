@@ -156,8 +156,10 @@ public class GUI {
                 jsonTreino += "}";
 
                 // construir a prompt final
-                resultado.append("Gera uma nova versão do enunciado e dos testes, mantendo tema e dificuldade.\n");
-                resultado.append("Responde APENAS em JSON no formato:\n");
+                resultado.append("Gera UMA NOVA versão do exercício com o MESMO nível de dificuldade e o MESMO tipo de requisitos.\n");
+                resultado.append("Mas com um tema diferente do exemplo.\n");
+                resultado.append("Não uses o mesmo domínio/nomes do exemplo.\n");
+                resultado.append("Responde APENAS em JSON.\n");
                 resultado.append("{ \"versions\": [ { \"id\": \"v1\", \"instructions\": \"...\", \"reference\": \"...\", \"tests\": \"...\" } ] }\n\n");
                 resultado.append("EXEMPLO DE TREINO:\n");
                 resultado.append(jsonTreino);
