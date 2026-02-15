@@ -67,4 +67,22 @@ public class JSONUtils {
                 .replace("\t", "\\t");
     }
 
+    //função para descapar o texto
+
+    static String unescapeFromLLM(String s) {
+        if (s == null) return null;
+
+        // Converte sequências escapadas em caracteres reais
+        s = s.replace("\\n", "\n")
+                .replace("\\t", "\t")
+                .replace("\\r", "\r")
+                .replace("\\\"", "\"");
+
+        // No fim, converte \\ em \
+        s = s.replace("\\\\", "\\");
+
+        return s;
+    }
+
+
 }

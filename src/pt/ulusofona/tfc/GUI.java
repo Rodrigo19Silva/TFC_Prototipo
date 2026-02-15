@@ -11,6 +11,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 
 
 public class GUI {
@@ -18,6 +22,9 @@ public class GUI {
     private static JTextArea infoTextArea;
     private static JComboBox<String> modeloComboBox;
     private static JComboBox<Integer> versoesComboBox;
+    private static String ultimoConteudoGerado = null;
+
+
 
     private static LLMInteractionEngine engine;
     public GUI (LLMInteractionEngine engine) {
@@ -175,7 +182,7 @@ public class GUI {
         return resultado.toString();
     }
 
-    static void processarPedido(String folder, String modelo, int nrVersoes) {
+    public static void processarPedido(String folder, String modelo, int nrVersoes) {
 
         ArrayList<TrainingExample> exemplos = getInputFilesContents(folder);
         if (exemplos == null) return;
@@ -200,9 +207,12 @@ public class GUI {
 
                 if (resposta != null) {
                     infoTextArea.append(resposta);
+                    ultimoConteudoGerado = resposta;
                 } else {
                     infoTextArea.append(jsonResposta);
+                    ultimoConteudoGerado = jsonResposta;
                 }
+
 
                 infoTextArea.append("\n\n");
 
@@ -215,6 +225,19 @@ public class GUI {
 
         infoTextArea.append("Concluído.\n");
     }
+
+    //guardar o ficheiro gerado pelo llm
+    private static void guardarEmFicheiro(String nomeFicheiro, String conteudo) throws IOException {
+        Path pastaSaida = Path.of("generated");
+        Files.createDirectories(pastaSaida);
+
+        Path ficheiroSaida = pastaSaida.resolve(nomeFicheiro);
+        Files.writeString(ficheiroSaida, conteudo, StandardCharsets.UTF_8);
+
+        System.out.println("Guardado em: " + ficheiroSaida.toAbsolutePath());
+    }
+
+
 
     // grid layout
     public static void mostrarGUI() {
@@ -300,6 +323,41 @@ public class GUI {
 
         gbc.gridwidth = 1; gbc.weighty = 0.0; gbc.fill = GridBagConstraints.HORIZONTAL;
 
+        //guardar ficheiro
+        JButton guardarButton = new JButton("Guardar");
+        guardarButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    if (ultimoConteudoGerado == null || ultimoConteudoGerado.isBlank()) {
+                        JOptionPane.showMessageDialog(window,
+                                "Ainda não existe resultado para guardar. Clica primeiro em Submeter.",
+                                "Nada para guardar", JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+
+
+                    String conteudo = ultimoConteudoGerado;
+                    String ext = conteudo.trim().startsWith("<") ? ".html" : ".md";
+
+                    String nome = "instructions_" + System.currentTimeMillis() + ext;
+
+                    guardarEmFicheiro(nome, conteudo);
+
+                    JOptionPane.showMessageDialog(window,
+                            "Guardado em generated/" + nome,
+                            "OK", JOptionPane.INFORMATION_MESSAGE);
+
+                } catch (Exception erro) {
+                    JOptionPane.showMessageDialog(window,
+                            "Erro ao guardar: " + erro.getMessage(),
+                            "Erro", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+
+
+
         // submeter
         JButton enviarButton = new JButton("Submeter");
         enviarButton.addActionListener(new ActionListener() {
@@ -352,6 +410,9 @@ public class GUI {
                 processarPedido(pasta, modelo, nrVersoes);
             }
         });
+
+        gbc.gridx = 1; gbc.gridy = 4; gbc.anchor = GridBagConstraints.SOUTHEAST; gbc.fill = GridBagConstraints.NONE;
+        painel.add(guardarButton, gbc);
 
         gbc.gridx = 2; gbc.gridy = 4; gbc.anchor = GridBagConstraints.SOUTHEAST; gbc.fill = GridBagConstraints.NONE;
         painel.add(enviarButton, gbc);
