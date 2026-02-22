@@ -10,10 +10,12 @@ import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 
 
@@ -22,12 +24,12 @@ public class GUI {
     private static JTextArea infoTextArea;
     private static JComboBox<String> modeloComboBox;
     private static JComboBox<Integer> versoesComboBox;
-    private static String ultimoConteudoGerado = null;
-
+    private static Map<EnumTipoFicheiro,String> mapRespostaConteudosGerados = new HashMap<>();
 
 
     private static LLMInteractionEngine engine;
-    public GUI (LLMInteractionEngine engine) {
+
+    public GUI(LLMInteractionEngine engine) {
         // assign to static field explicitly
         GUI.engine = engine;
     }
@@ -67,14 +69,11 @@ public class GUI {
                             conteudoDoFicheiro.append(linha).append("\n");
                         }
                         instructions = conteudoDoFicheiro.toString();
+                    } catch (IOException e) {
+                        throw new RuntimeException("Erro ao ler o ficheiro: " + ficheiro.getAbsolutePath(), e);
                     }
-                    catch (IOException e) {
-                                        throw new RuntimeException("Erro ao ler o ficheiro: " + ficheiro.getAbsolutePath(), e);
-                                   }
 
-                                }
-
-                else if (nome.toLowerCase().endsWith(".java")) {
+                } else if (nome.toLowerCase().endsWith(".java")) {
 
                     try (BufferedReader br = new BufferedReader(
                             new java.io.InputStreamReader(
@@ -142,7 +141,7 @@ public class GUI {
         return exemplos;
     }
 
-    private static String criarPrompt(ArrayList<TrainingExample> partes) {
+    private static String criarPromptInstructions(ArrayList<TrainingExample> partes) {
         StringBuilder resultado = new StringBuilder();
 
         // validação básica
@@ -158,8 +157,6 @@ public class GUI {
                 String jsonTreino = "";
                 jsonTreino += "{";
                 jsonTreino += "\"instructions\":\"" + JSONUtils.escapeJsonString(exemplo.getInstructions()) + "\",";
-                jsonTreino += "\"reference\":\"" + JSONUtils.escapeJsonString(exemplo.getReferenceCode()) + "\",";
-                jsonTreino += "\"tests\":\"" + JSONUtils.escapeJsonString(exemplo.getTestsCode()) + "\"";
                 jsonTreino += "}";
 
                 // construir a prompt final
@@ -167,8 +164,85 @@ public class GUI {
                 resultado.append("Mas com um tema diferente do exemplo.\n");
                 resultado.append("Não uses o mesmo domínio/nomes do exemplo.\n");
                 resultado.append("Responde APENAS em JSON.\n");
-                resultado.append("{ \"versions\": [ { \"id\": \"v1\", \"instructions\": \"...\", \"reference\": \"...\", \"tests\": \"...\" } ] }\n\n");
+                resultado.append("{ \"versions\": [ { \"id\": \"v1\", \"instructions\": \"...\" } ] }\n\n");
                 resultado.append("EXEMPLO DE TREINO:\n");
+                resultado.append(jsonTreino);
+
+                if (i < partes.size() - 1) {
+                    resultado.append("\n\n");
+                }
+
+                i++;
+            }
+        }
+
+        return resultado.toString();
+    }
+
+    private static String criarPromptReference(ArrayList<TrainingExample> partes, String instructionsGerado) {
+        StringBuilder resultado = new StringBuilder();
+
+        if (partes != null) {
+            int i = 0;
+
+            while (i < partes.size()) {
+
+                TrainingExample exemplo = partes.get(i);
+
+                String jsonTreino = "";
+                jsonTreino += "{";
+                jsonTreino += "\"reference\":\"" + JSONUtils.escapeJsonString(exemplo.getReferenceCode()) + "\"";
+                jsonTreino += "}";
+
+                resultado.append("Gera UMA NOVA versão do(s) ficheiro(s) Java de referência que resolvam o NOVO enunciado abaixo.\n");
+                resultado.append("IMPORTANTE: Responde APENAS em JSON válido e com \\n escapados dentro das strings.\n");
+                resultado.append("Formato obrigatório:\n");
+                resultado.append("{ \"versions\": [ { \"id\": \"v1\", \"reference\": \"...\" } ] }\n\n");
+
+                resultado.append("NOVO ENUNCIADO:\n");
+                resultado.append(instructionsGerado).append("\n\n");
+
+                resultado.append("EXEMPLO DE REFERENCE (para estilo/estrutura):\n");
+                resultado.append(jsonTreino);
+
+                if (i < partes.size() - 1) {
+                    resultado.append("\n\n");
+                }
+
+                i++;
+            }
+        }
+
+        return resultado.toString();
+    }
+
+    private static String criarPromptUnitTests(ArrayList<TrainingExample> partes, String instructionsGerado, String referenceGerado) {
+        StringBuilder resultado = new StringBuilder();
+
+        if (partes != null) {
+            int i = 0;
+
+            while (i < partes.size()) {
+
+                TrainingExample exemplo = partes.get(i);
+
+                String jsonTreino = "";
+                jsonTreino += "{";
+                jsonTreino += "\"tests\":\"" + JSONUtils.escapeJsonString(exemplo.getTestsCode()) + "\"";
+                jsonTreino += "}";
+
+                resultado.append("Gera UMA NOVA versão de testes unitários que coincidam com o NOVO enunciado e com a NOVA reference abaixo.\n");
+                resultado.append("IMPORTANTE: Responde APENAS em JSON válido e com \\n escapados dentro das strings.\n");
+                resultado.append("Formato obrigatório:\n");
+                resultado.append("{ \"versions\": [ { \"id\": \"v1\", \"tests\": \"...\" } ] }\n\n");
+
+                resultado.append("NOVO ENUNCIADO:\n");
+                resultado.append(instructionsGerado).append("\n\n");
+
+                resultado.append("NOVA REFERENCE:\n");
+                resultado.append(referenceGerado).append("\n\n");
+
+                resultado.append("EXEMPLO DE TESTES (para estilo):\n");
                 resultado.append(jsonTreino);
 
                 if (i < partes.size() - 1) {
@@ -191,29 +265,58 @@ public class GUI {
 
         infoTextArea.append("Ficheiros lidos: " + exemplos.size() + "\n");
 
-        String prompt = criarPrompt(exemplos);
-
-        System.out.println("Prompt length = " + prompt.length());
-
         for (int versao = 1; versao <= nrVersoes; versao++) {
             infoTextArea.append("Versão " + versao + "...\n");
+
+            // limpar resultados desta versão
+            mapRespostaConteudosGerados.clear();
+
             try {
-                String jsonResposta = engine.sendPrompt(prompt);
-                String resposta = JSONUtils.getJsonString(jsonResposta, "text");
+                // ========= 1) INSTRUCTIONS =========
+                String promptI = criarPromptInstructions(exemplos);
+                String jsonRespI = engine.sendWithRetries(promptI, 4, 1500L);
 
-                System.out.println(jsonResposta);
+                String textI = JSONUtils.getJsonString(jsonRespI, "text");
+                String modeloI = (textI != null) ? textI : jsonRespI;
 
-                infoTextArea.append("\nResposta " + versao + " ---\n");
+                String instructionsGerado = extrairConteudoPorTipo(EnumTipoFicheiro.INSTRUCTIONS, modeloI);
 
-                if (resposta != null) {
-                    infoTextArea.append(resposta);
-                    ultimoConteudoGerado = resposta;
-                } else {
-                    infoTextArea.append(jsonResposta);
-                    ultimoConteudoGerado = jsonResposta;
-                }
+                mapRespostaConteudosGerados.put(EnumTipoFicheiro.INSTRUCTIONS, instructionsGerado);
+
+                infoTextArea.append("\n--- INSTRUCTIONS (v" + versao + ") ---\n");
+                infoTextArea.append(instructionsGerado);
+                infoTextArea.append("\n\n");
 
 
+                // ========= 2) REFERENCE (depende do INSTRUCTIONS) =========
+                String promptR = criarPromptReference(exemplos, instructionsGerado);
+                String jsonRespR = engine.sendWithRetries(promptR, 4, 1500L);
+
+                String textR = JSONUtils.getJsonString(jsonRespR, "text");
+                String modeloR = (textR != null) ? textR : jsonRespR;
+
+                String referenceGerado = extrairConteudoPorTipo(EnumTipoFicheiro.REFERENCE, modeloR);
+
+                mapRespostaConteudosGerados.put(EnumTipoFicheiro.REFERENCE, referenceGerado);
+
+                infoTextArea.append("\n--- REFERENCE (v" + versao + ") ---\n");
+                infoTextArea.append(referenceGerado);
+                infoTextArea.append("\n\n");
+
+
+                // ========= 3) TESTS (depende de INSTRUCTIONS + REFERENCE) =========
+                String promptT = criarPromptUnitTests(exemplos, instructionsGerado, referenceGerado);
+                String jsonRespT = engine.sendWithRetries(promptT, 4, 1500L);
+
+                String textT = JSONUtils.getJsonString(jsonRespT, "text");
+                String modeloT = (textT != null) ? textT : jsonRespT;
+
+                String testsGerado = extrairConteudoPorTipo(EnumTipoFicheiro.UNIT_TESTS, modeloT);
+
+                mapRespostaConteudosGerados.put(EnumTipoFicheiro.UNIT_TESTS, testsGerado);
+
+                infoTextArea.append("\n--- TESTS (v" + versao + ") ---\n");
+                infoTextArea.append(testsGerado);
                 infoTextArea.append("\n\n");
 
             } catch (Exception erro) {
@@ -224,6 +327,29 @@ public class GUI {
         }
 
         infoTextArea.append("Concluído.\n");
+    }
+
+    private static String extrairConteudoPorTipo(EnumTipoFicheiro tipo, String respostaJson) {
+        if (respostaJson == null) return null;
+
+        // tenta extrair o campo certo primeiro
+        String campo = null;
+
+        if (tipo == EnumTipoFicheiro.INSTRUCTIONS) {
+            campo = JSONUtils.getJsonString(respostaJson, "instructions");
+        } else if (tipo == EnumTipoFicheiro.REFERENCE) {
+            campo = JSONUtils.getJsonString(respostaJson, "reference");
+        } else if (tipo == EnumTipoFicheiro.UNIT_TESTS) {
+            campo = JSONUtils.getJsonString(respostaJson, "tests");
+        }
+
+        // se conseguiu extrair, desescapa só esse conteúdo
+        if (campo != null) {
+            return JSONUtils.unescapeFromLLM(campo);
+        }
+
+        // fallback: devolve tudo desescapado
+        return JSONUtils.unescapeFromLLM(respostaJson);
     }
 
     //guardar o ficheiro gerado pelo llm
@@ -238,13 +364,13 @@ public class GUI {
     }
 
 
-
     // grid layout
     public static void mostrarGUI() {
         JFrame window = new JFrame("TFC do Rodrigo");
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         window.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
@@ -256,12 +382,17 @@ public class GUI {
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         // pasta a selecionar
-        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0.0; gbc.fill = GridBagConstraints.NONE;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 0.0;
+        gbc.fill = GridBagConstraints.NONE;
         painel.add(new JLabel("Pasta:"), gbc);
 
         pastaField = new JTextField();
         pastaField.setEditable(false);
-        gbc.gridx = 1; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         painel.add(pastaField, gbc);
 
         JButton selecionarPastaButton = new JButton("Selecionar Pasta");
@@ -278,37 +409,53 @@ public class GUI {
                 }
             }
         });
-        gbc.gridx = 2; gbc.weightx = 0.0; gbc.fill = GridBagConstraints.NONE;
+        gbc.gridx = 2;
+        gbc.weightx = 0.0;
+        gbc.fill = GridBagConstraints.NONE;
         painel.add(selecionarPastaButton, gbc);
 
         // modelo llm
-        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.0; gbc.fill = GridBagConstraints.NONE;
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.weightx = 0.0;
+        gbc.fill = GridBagConstraints.NONE;
         painel.add(new JLabel("Modelo:"), gbc);
 
         modeloComboBox = new JComboBox<>(obterModelos());
-        gbc.gridx = 1; gbc.gridwidth = 2; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 1;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         painel.add(modeloComboBox, gbc);
         gbc.gridwidth = 1;
 
         // nr versões
-        gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0.0; gbc.fill = GridBagConstraints.NONE;
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.weightx = 0.0;
+        gbc.fill = GridBagConstraints.NONE;
         painel.add(new JLabel("Versões:"), gbc);
 
-        Integer[] options = {1,2,3,4,5,6,7,8,9,10};
+        Integer[] options = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
         versoesComboBox = new JComboBox<>(options);
         versoesComboBox.setEditable(true);
         JTextField editor = (JTextField) versoesComboBox.getEditor().getEditorComponent();
         ((AbstractDocument) editor.getDocument()).setDocumentFilter(new NumericFilter());
         editor.setText("1"); // default
 
-        gbc.gridx = 1; gbc.weightx = 0.3; gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 1;
+        gbc.weightx = 0.3;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         painel.add(versoesComboBox, gbc);
 
-        gbc.gridx = 2; gbc.weightx = 0.7;
+        gbc.gridx = 2;
+        gbc.weightx = 0.7;
         painel.add(Box.createHorizontalStrut(1), gbc);
 
         // textarea onde aparece as informações
-        gbc.gridx = 0; gbc.gridy = 3; gbc.anchor = GridBagConstraints.NORTHWEST;
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.anchor = GridBagConstraints.NORTHWEST;
         painel.add(new JLabel("Informações:"), gbc);
 
         infoTextArea = new JTextArea(12, 60);
@@ -317,11 +464,17 @@ public class GUI {
         infoTextArea.setWrapStyleWord(true);
         JScrollPane scrollPane = new JScrollPane(infoTextArea);
 
-        gbc.gridx = 1; gbc.gridy = 3; gbc.gridwidth = 2;
-        gbc.weightx = 1.0; gbc.weighty = 1.0; gbc.fill = GridBagConstraints.BOTH;
+        gbc.gridx = 1;
+        gbc.gridy = 3;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.BOTH;
         painel.add(scrollPane, gbc);
 
-        gbc.gridwidth = 1; gbc.weighty = 0.0; gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridwidth = 1;
+        gbc.weighty = 0.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
         //guardar ficheiro
         JButton guardarButton = new JButton("Guardar");
@@ -329,33 +482,38 @@ public class GUI {
             @Override
             public void actionPerformed(ActionEvent e) {
                 try {
-                    if (ultimoConteudoGerado == null || ultimoConteudoGerado.isBlank()) {
+                    if (mapRespostaConteudosGerados == null || mapRespostaConteudosGerados.isEmpty()) {
                         JOptionPane.showMessageDialog(window,
                                 "Ainda não existe resultado para guardar. Clica primeiro em Submeter.",
                                 "Nada para guardar", JOptionPane.WARNING_MESSAGE);
                         return;
                     }
 
+                    for ( Map.Entry<EnumTipoFicheiro, String> entry : mapRespostaConteudosGerados.entrySet()) {
+                        String ext;
+                        if (entry.getKey() == EnumTipoFicheiro.INSTRUCTIONS) {
+                            ext = entry.getValue().trim().startsWith("<") ? ".html" : ".md";
+                        } else {
+                            ext = ".java";
+                        }
+                        String nome = entry.getKey().getNomeFicheiro() + "_" + System.currentTimeMillis() + ext;
 
-                    String conteudo = ultimoConteudoGerado;
-                    String ext = conteudo.trim().startsWith("<") ? ".html" : ".md";
+                        guardarEmFicheiro(nome, entry.getValue());
 
-                    String nome = "instructions_" + System.currentTimeMillis() + ext;
+                        JOptionPane.showMessageDialog(window,
+                                "Guardado em generated/" + nome,
+                                "OK", JOptionPane.INFORMATION_MESSAGE);
 
-                    guardarEmFicheiro(nome, conteudo);
-
-                    JOptionPane.showMessageDialog(window,
-                            "Guardado em generated/" + nome,
-                            "OK", JOptionPane.INFORMATION_MESSAGE);
-
-                } catch (Exception erro) {
+                    }
+                }
+                catch(Exception erro){
                     JOptionPane.showMessageDialog(window,
                             "Erro ao guardar: " + erro.getMessage(),
                             "Erro", JOptionPane.ERROR_MESSAGE);
                 }
+
             }
         });
-
 
 
         // submeter
@@ -411,10 +569,16 @@ public class GUI {
             }
         });
 
-        gbc.gridx = 1; gbc.gridy = 4; gbc.anchor = GridBagConstraints.SOUTHEAST; gbc.fill = GridBagConstraints.NONE;
+        gbc.gridx = 1;
+        gbc.gridy = 4;
+        gbc.anchor = GridBagConstraints.SOUTHEAST;
+        gbc.fill = GridBagConstraints.NONE;
         painel.add(guardarButton, gbc);
 
-        gbc.gridx = 2; gbc.gridy = 4; gbc.anchor = GridBagConstraints.SOUTHEAST; gbc.fill = GridBagConstraints.NONE;
+        gbc.gridx = 2;
+        gbc.gridy = 4;
+        gbc.anchor = GridBagConstraints.SOUTHEAST;
+        gbc.fill = GridBagConstraints.NONE;
         painel.add(enviarButton, gbc);
 
         window.setContentPane(painel);
